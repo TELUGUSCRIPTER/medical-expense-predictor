@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedPredict AI — Insurance Intelligence Dashboard</title>
+    <meta name="description" content="AI-powered medical insurance prediction dashboard with data insights, charts, and plan recommendations.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        dark: { 200:'#1e293b',300:'#192033',400:'#141b2d',500:'#111827',600:'#0d1320',700:'#0a0f1a',800:'#070b14',900:'#04060d' },
+                        accent: { 400:'#6366f1',500:'#4f46e5',600:'#4338ca' },
+                        neon: { green:'#22c55e',blue:'#3b82f6',purple:'#8b5cf6',amber:'#f59e0b',cyan:'#06b6d4',red:'#ef4444' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #070b14; }
+        .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%); background-size: 200% 100%; animation: shimmer 1.8s infinite; border-radius: 8px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .page-loader { position: fixed; inset: 0; z-index: 9999; background: #070b14; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s, visibility 0.5s; }
+        .page-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .loader-ring { width: 48px; height: 48px; border: 3px solid rgba(99,102,241,0.15); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-pulse { animation: lpulse 2s ease-in-out infinite; }
+        @keyframes lpulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(20px); }
+        .stat-card { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
+        .stat-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+        .glow-indigo { box-shadow: 0 0 40px rgba(99,102,241,0.12); }
+        .glow-green { box-shadow: 0 0 30px rgba(34,197,94,0.1); }
+        .progress-fill { transition: width 1.5s cubic-bezier(0.4,0,0.2,1); }
+        .fade-up { animation: fadeUp 0.5s ease-out forwards; opacity: 0; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0f1a; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        .data-table tr { transition: background 0.2s; }
+        .data-table tr:hover { background: rgba(99,102,241,0.05); }
+        .btn-predict { background: linear-gradient(135deg, #4f46e5, #7c3aed); transition: all 0.3s; position: relative; overflow: hidden; }
+        .btn-predict:hover { box-shadow: 0 8px 30px rgba(99,102,241,0.4); transform: translateY(-1px); }
+        .btn-predict:active { transform: translateY(0); }
+        .btn-predict::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,0.1) 50%,transparent 60%); transform:translateX(-100%); }
+        .btn-predict:hover::after { animation: btnShine 0.6s forwards; }
+        @keyframes btnShine { to { transform: translateX(100%); } }
+        .pill { padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+        .finput { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); transition: all 0.25s; }
+        .finput:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); background: rgba(255,255,255,0.06); }
+        .finput:hover { border-color: rgba(255,255,255,0.15); }
+        select.finput option { background: #141b2d; color: #e2e8f0; }
+        .result-card { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(6,182,212,0.05)); border: 1px solid rgba(34,197,94,0.15); }
+        .plan-premium { background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(249,115,22,0.05)); border: 1px solid rgba(239,68,68,0.15); }
+        .plan-standard { background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(251,191,36,0.05)); border: 1px solid rgba(245,158,11,0.15); }
+        .plan-basic { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(16,185,129,0.05)); border: 1px solid rgba(34,197,94,0.15); }
+        .chart-card { transition: all 0.3s; }
+        .chart-card:hover { box-shadow: 0 15px 40px rgba(0,0,0,0.25); }
+    </style>
+</head>
+<body class="min-h-screen text-slate-200 antialiased">
+
+<!-- PAGE LOADER -->
+<div id="pageLoader" class="page-loader">
+    <div class="loader-ring mb-4"></div>
+    <p class="text-sm font-medium text-indigo-300 loader-pulse">Initializing Dashboard</p>
+    <p class="text-xs text-slate-500 mt-1">Loading ML models & dataset...</p>
+</div>
+
+<!-- AMBIENT BG -->
+<div class="fixed inset-0 pointer-events-none overflow-hidden">
+    <div class="absolute -top-32 -left-32 w-[600px] h-[600px] bg-indigo-600/[0.04] rounded-full blur-[150px]"></div>
+    <div class="absolute -bottom-32 -right-32 w-[500px] h-[500px] bg-violet-600/[0.03] rounded-full blur-[130px]"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-cyan-500/[0.02] rounded-full blur-[120px]"></div>
+</div>
+
+<div class="relative z-10">
+
+    <!-- TOP NAV -->
+    <nav class="sticky top-0 z-50 glass border-b border-white/[0.04] px-4 md:px-8 py-3">
+        <div class="max-w-[1440px] mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-indigo-500/20">MP</div>
+                <div>
+                    <h1 class="text-sm font-bold text-white leading-none">MedPredict AI</h1>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Insurance Intelligence</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="pill bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">● Models Active</span>
+                <span class="pill bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 hidden sm:inline">v2.0 — Random Forest</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-[1440px] mx-auto px-4 md:px-8 py-6 space-y-6">
+
+        <!-- ROW 1: STAT CARDS -->
+        <section id="statsSection">
+            <div class="flex items-center gap-2 mb-4">
+                <h2 class="text-xs font-semibold uppercase tracking-widest text-slate-500">Dataset Overview</h2>
+                <div id="statsLoader" class="loader-ring !w-4 !h-4 !border-2"></div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="statsGrid">
+                <div class="glass rounded-2xl p-5 stat-card"><div class="skeleton h-3 w-20 mb-3"></div><div class="skeleton h-7 w-28 mb-2"></div><div class="skeleton h-2.5 w-16"></div></div>
+                <div class="glass rounded-2xl p-5 stat-card"><div class="skeleton h-3 w-20 mb-3"></div><div class="skeleton h-7 w-28 mb-2"></div><div class="skeleton h-2.5 w-16"></div></div>
+                <div class="glass rounded-2xl p-5 stat-card"><div class="skeleton h-3 w-20 mb-3"></div><div class="skeleton h-7 w-28 mb-2"></div><div class="skeleton h-2.5 w-16"></div></div>
+                <div class="glass rounded-2xl p-5 stat-card"><div class="skeleton h-3 w-20 mb-3"></div><div class="skeleton h-7 w-28 mb-2"></div><div class="skeleton h-2.5 w-16"></div></div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════ -->
+        <!-- ROW 2: DATA INSIGHTS CHARTS (NEW - Chart.js)  -->
+        <!-- ═══════════════════════════════════════════════ -->
+        <section>
+            <div class="flex items-center gap-2 mb-4">
+                <h2 class="text-xs font-semibold uppercase tracking-widest text-slate-500">Data Insights</h2>
+                <div id="chartsLoader" class="loader-ring !w-4 !h-4 !border-2"></div>
+            </div>
+            <div class="grid md:grid-cols-2 gap-5" id="chartsGrid">
+                <!-- Bar Chart: Smoker vs Non-Smoker -->
+                <div class="glass rounded-2xl p-5 chart-card">
+                    <h3 class="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-indigo-500"></span> Smoker vs Non-Smoker Avg Charges
+                    </h3>
+                    <div id="barChartSkeleton" class="skeleton h-52 rounded-lg"></div>
+                    <div id="barChartWrap" class="hidden" style="height: 220px;">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+                <!-- Scatter Plot: BMI vs Charges -->
+                <div class="glass rounded-2xl p-5 chart-card">
+                    <h3 class="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-violet-500"></span> BMI vs Insurance Charges
+                    </h3>
+                    <div id="scatterSkeleton" class="skeleton h-52 rounded-lg"></div>
+                    <div id="scatterWrap" class="hidden" style="height: 220px;">
+                        <canvas id="scatterChart"></canvas>
+                    </div>
+                </div>
+                <!-- Age vs Charges Line Chart -->
+                <div class="glass rounded-2xl p-5 chart-card">
+                    <h3 class="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-500"></span> Age Group vs Avg Charges
+                    </h3>
+                    <div id="ageSkeleton" class="skeleton h-52 rounded-lg"></div>
+                    <div id="ageChartWrap" class="hidden" style="height: 220px;">
+                        <canvas id="ageChart"></canvas>
+                    </div>
+                </div>
+                <!-- Region Bar Chart -->
+                <div class="glass rounded-2xl p-5 chart-card">
+                    <h3 class="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Region-wise Avg Charges
+                    </h3>
+                    <div id="regionSkeleton" class="skeleton h-52 rounded-lg"></div>
+                    <div id="regionChartWrap" class="hidden" style="height: 220px;">
+                        <canvas id="regionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROW 3: PREDICTOR + SIDEBAR -->
+        <div class="grid lg:grid-cols-5 gap-6">
+
+            <!-- PREDICTION FORM -->
+            <div class="lg:col-span-3 space-y-5">
+                <div class="glass rounded-2xl p-6 glow-indigo">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center"><span class="text-lg">🔮</span></div>
+                            <div>
+                                <h2 class="text-base font-bold text-white">Predict Insurance Cost</h2>
+                                <p class="text-[11px] text-slate-500">Powered by Random Forest (83.97% accuracy)</p>
+                            </div>
+                        </div>
+                        <span class="pill bg-violet-500/10 text-violet-300 border border-violet-500/20">AI Model</span>
+                    </div>
+
+                    <form id="predictForm" onsubmit="handlePredict(event)">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Age <span class="text-slate-600">(1–100)</span></label>
+                                <input type="number" name="age" id="age" min="1" max="100" required placeholder="e.g. 30" class="finput w-full px-4 py-3 rounded-xl text-white text-sm placeholder-slate-600 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Gender</label>
+                                <select name="sex" id="sex" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none cursor-pointer appearance-none">
+                                    <option value="">Select Gender</option>
+                                    <option value="0">Male</option>
+                                    <option value="1">Female</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">BMI <span class="text-slate-600">(10–60)</span></label>
+                                <input type="number" name="bmi" id="bmi" min="10" max="60" step="0.1" required placeholder="e.g. 25.5" class="finput w-full px-4 py-3 rounded-xl text-white text-sm placeholder-slate-600 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Children <span class="text-slate-600">(0–10)</span></label>
+                                <input type="number" name="children" id="children" min="0" max="10" required placeholder="e.g. 2" class="finput w-full px-4 py-3 rounded-xl text-white text-sm placeholder-slate-600 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Smoking Status</label>
+                                <select name="smoker" id="smoker" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none cursor-pointer appearance-none">
+                                    <option value="">Select Status</option>
+                                    <option value="0">Non-Smoker</option>
+                                    <option value="1">Smoker</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Region</label>
+                                <select name="region" id="region" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none cursor-pointer appearance-none">
+                                    <option value="">Select Region</option>
+                                    <optgroup label="─── US Regions">
+                                        <option value="0">Southwest</option>
+                                        <option value="1">Southeast</option>
+                                        <option value="2">Northwest</option>
+                                        <option value="3">Northeast</option>
+                                    </optgroup>
+                                    <optgroup label="─── India Regions">
+                                        <option value="4">North India (Delhi, UP, Punjab)</option>
+                                        <option value="5">South India (TN, Kerala, Karnataka)</option>
+                                        <option value="6">East India (WB, Bihar, Odisha)</option>
+                                        <option value="7">West India (Maharashtra, Gujarat)</option>
+                                        <option value="8">Central India (MP, Chhattisgarh)</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" id="submitBtn" class="btn-predict mt-6 w-full py-3.5 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2">
+                            <span id="btnIcon">⚡</span>
+                            <span id="btnText">Generate Prediction</span>
+                            <div id="btnSpinner" class="loader-ring !w-5 !h-5 !border-2 hidden"></div>
+                        </button>
+                    </form>
+                    <div id="errorBox" class="hidden mt-4 p-4 rounded-xl bg-red-500/8 border border-red-500/20"></div>
+                </div>
+
+                <!-- PREDICTION RESULT -->
+                <div id="resultSection" class="hidden space-y-5">
+                    <!-- Result skeleton -->
+                    <div id="resultSkeleton" class="glass rounded-2xl p-6 hidden">
+                        <div class="skeleton h-5 w-40 mb-4"></div>
+                        <div class="grid sm:grid-cols-2 gap-4"><div class="skeleton h-24 rounded-xl"></div><div class="skeleton h-24 rounded-xl"></div></div>
+                        <div class="skeleton h-16 mt-4 rounded-xl"></div>
+                        <div class="skeleton h-32 mt-4 rounded-xl"></div>
+                    </div>
+
+                    <!-- Actual result -->
+                    <div id="resultCard" class="hidden fade-up">
+                        <!-- Prediction amounts -->
+                        <div class="result-card rounded-2xl p-6 glow-green">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center"><span class="text-lg">📊</span></div>
+                                    <div>
+                                        <h3 class="text-base font-bold text-emerald-300">Prediction Result</h3>
+                                        <p class="text-[11px] text-slate-500">Random Forest Model</p>
+                                    </div>
+                                </div>
+                                <div id="riskBadge" class="pill"></div>
+                            </div>
+                            <div class="grid sm:grid-cols-2 gap-4 mb-4">
+                                <div class="bg-emerald-500/8 border border-emerald-500/15 rounded-xl p-5">
+                                    <p class="text-[10px] uppercase tracking-widest text-emerald-400/70 font-semibold mb-1">Random Forest</p>
+                                    <p class="text-2xl font-extrabold text-emerald-300" id="rfPrediction">—</p>
+                                    <p class="text-xs text-slate-500 mt-1" id="rfPredictionNote"></p>
+                                </div>
+                                <div class="bg-blue-500/8 border border-blue-500/15 rounded-xl p-5">
+                                    <p class="text-[10px] uppercase tracking-widest text-blue-400/70 font-semibold mb-1">Linear Regression</p>
+                                    <p class="text-2xl font-extrabold text-blue-300" id="lrPrediction">—</p>
+                                    <p class="text-xs text-slate-500 mt-1" id="lrPredictionNote"></p>
+                                </div>
+                                <div class="bg-violet-500/8 border border-violet-500/15 rounded-xl p-5">
+                                    <p class="text-[10px] uppercase tracking-widest text-violet-400/70 font-semibold mb-1">Decision Tree</p>
+                                    <p class="text-2xl font-extrabold text-violet-300" id="dtPrediction">—</p>
+                                    <p class="text-xs text-slate-500 mt-1" id="dtPredictionNote"></p>
+                                </div>
+                                <div class="bg-amber-500/8 border border-amber-500/15 rounded-xl p-5">
+                                    <p class="text-[10px] uppercase tracking-widest text-amber-400/70 font-semibold mb-1">Logistic Regression</p>
+                                    <p class="text-2xl font-extrabold text-amber-300" id="logPrediction">—</p>
+                                    <p class="text-xs text-slate-500 mt-1" id="logPredictionNote"></p>
+                                </div>
+                            </div>
+                            <div id="healthTips" class="space-y-2"></div>
+                            <p class="mt-4 text-[10px] text-slate-600">⚡ Disclaimer: AI-based estimate for educational purposes only.</p>
+                        </div>
+                    </div>
+
+                    <!-- ═══════════════════════════════════════ -->
+                    <!-- AI EXPLANATION CARD (NEW)              -->
+                    <!-- ═══════════════════════════════════════ -->
+                    <div id="explanationCard" class="hidden fade-up glass rounded-2xl p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center"><span class="text-lg">🧠</span></div>
+                            <div>
+                                <h3 class="text-base font-bold text-violet-300">AI Explanation</h3>
+                                <p class="text-[11px] text-slate-500">Why your prediction is this amount</p>
+                            </div>
+                        </div>
+                        <p id="explanationSummary" class="text-xs text-slate-400 mb-4 p-3 rounded-lg bg-white/[0.02] border border-white/5"></p>
+                        <div id="explanationReasons" class="space-y-2.5"></div>
+                    </div>
+
+                    <!-- ═══════════════════════════════════════ -->
+                    <!-- INSURANCE RECOMMENDATION CARD (NEW)    -->
+                    <!-- ═══════════════════════════════════════ -->
+                    <div id="recommendationCard" class="hidden fade-up rounded-2xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center" id="recIcon"><span class="text-lg">🏥</span></div>
+                                <div>
+                                    <h3 class="text-base font-bold" id="recPlanName">—</h3>
+                                    <p class="text-[11px] text-slate-500">Recommended Insurance Plan</p>
+                                </div>
+                            </div>
+                            <div id="recTierBadge" class="pill"></div>
+                        </div>
+                        <p id="recReason" class="text-xs text-slate-400 mb-4"></p>
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Plan Features</p>
+                                <ul id="recFeatures" class="space-y-1.5"></ul>
+                            </div>
+                            <div class="flex items-center justify-center">
+                                <div class="text-center p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">Estimated Premium</p>
+                                    <p id="recPremium" class="text-lg font-extrabold text-white"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIDEBAR -->
+            <div class="lg:col-span-2 space-y-5">
+                <!-- Model comparison -->
+                <div class="glass rounded-2xl p-5" id="comparisonSection">
+                    <div class="flex items-center gap-2 mb-4">
+                        <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">Model Comparison</h3>
+                        <div id="compLoader" class="loader-ring !w-3.5 !h-3.5 !border-2"></div>
+                    </div>
+                    <div id="compContent">
+                        <div class="space-y-3">
+                            <div class="skeleton h-12 rounded-lg"></div>
+                            <div class="skeleton h-12 rounded-lg"></div>
+                            <div class="skeleton h-32 rounded-lg"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Key factors -->
+                <div class="glass rounded-2xl p-5">
+                    <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Cost Impact Factors</h3>
+                    <div class="space-y-3" id="factorsContent">
+                        <div class="skeleton h-8 rounded-lg"></div>
+                        <div class="skeleton h-8 rounded-lg"></div>
+                        <div class="skeleton h-8 rounded-lg"></div>
+                        <div class="skeleton h-8 rounded-lg"></div>
+                    </div>
+                </div>
+                <!-- How it works -->
+                <div class="glass rounded-2xl p-5">
+                    <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">How It Works</h3>
+                    <div class="space-y-2.5 text-xs text-slate-400">
+                        <div class="flex items-start gap-2.5">
+                            <span class="w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+                            <p>Enter patient health parameters</p>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <span class="w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                            <p>ML models process your data in parallel</p>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <span class="w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+                            <p>Get prediction, AI explanation & plan recommendation</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 4: DATASET PREVIEW -->
+        <section class="glass rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">Dataset Preview</h3>
+                    <div id="tableLoader" class="loader-ring !w-3.5 !h-3.5 !border-2"></div>
+                </div>
+                <span class="text-[10px] text-slate-600" id="tableCount"></span>
+            </div>
+            <div class="overflow-x-auto rounded-xl" id="tableContainer">
+                <div class="space-y-2 p-2">
+                    <div class="skeleton h-10 rounded-lg"></div>
+                    <div class="skeleton h-8 rounded-lg"></div>
+                    <div class="skeleton h-8 rounded-lg"></div>
+                    <div class="skeleton h-8 rounded-lg"></div>
+                    <div class="skeleton h-8 rounded-lg"></div>
+                    <div class="skeleton h-8 rounded-lg"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-6 text-[11px] text-slate-700 border-t border-white/[0.03]">
+        <p>MedPredict AI — Medical Expense & Health Insurance Prediction System</p>
+        <p class="mt-0.5">Python · Flask · Scikit-learn · Random Forest · Chart.js · Tailwind CSS</p>
+    </footer>
+</div>
+
+<script>
+// ═══════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════
+const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtDec = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Chart.js global defaults
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.font.family = 'Inter, sans-serif';
+Chart.defaults.font.size = 11;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth = 8;
+
+// ═══════════════════════════════════
+//  PAGE LOADER
+// ═══════════════════════════════════
+window.addEventListener('load', async () => {
+    await Promise.all([loadStats(), loadComparison(), loadDatasetPreview(), loadInsightsCharts()]);
+    await delay(400);
+    document.getElementById('pageLoader').classList.add('hidden');
+});
+
+// ═══════════════════════════════════
+//  LOAD STATS
+// ═══════════════════════════════════
+async function loadStats() {
+    try {
+        const res = await fetch('/api/stats');
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        const d = json.data;
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="glass rounded-2xl p-5 stat-card fade-up" style="animation-delay:0s">
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1">Total Records</p>
+                <p class="text-2xl font-extrabold text-white">${d.total_records.toLocaleString()}</p>
+                <p class="text-[11px] text-slate-500 mt-1">Training samples</p>
+            </div>
+            <div class="glass rounded-2xl p-5 stat-card fade-up" style="animation-delay:0.1s">
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1">Avg Premium</p>
+                <p class="text-2xl font-extrabold text-emerald-400">${fmt(d.avg_charge)}</p>
+                <p class="text-[11px] text-slate-500 mt-1">Per year average</p>
+            </div>
+            <div class="glass rounded-2xl p-5 stat-card fade-up" style="animation-delay:0.2s">
+                <p class="text-[10px] uppercase tracking-widest text-red-400/70 font-medium mb-1">Smoker Avg</p>
+                <p class="text-2xl font-extrabold text-red-400">${fmt(d.smoker_avg)}</p>
+                <div class="flex items-center gap-1 mt-1">
+                    <span class="text-[10px] text-red-400">↑ ${((d.smoker_avg / d.nonsmoker_avg - 1) * 100).toFixed(0)}%</span>
+                    <span class="text-[11px] text-slate-500">vs non-smoker</span>
+                </div>
+            </div>
+            <div class="glass rounded-2xl p-5 stat-card fade-up" style="animation-delay:0.3s">
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1">Non-Smoker Avg</p>
+                <p class="text-2xl font-extrabold text-cyan-400">${fmt(d.nonsmoker_avg)}</p>
+                <p class="text-[11px] text-slate-500 mt-1">${d.nonsmoker_count} records</p>
+            </div>`;
+        document.getElementById('statsLoader').classList.add('hidden');
+    } catch (e) { console.error('Stats error:', e); }
+}
+
+// ═══════════════════════════════════
+//  LOAD CHARTS (Chart.js via /api/insights)
+// ═══════════════════════════════════
+async function loadInsightsCharts() {
+    try {
+        const res = await fetch('/api/insights');
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        const d = json.data;
+
+        // 1. BAR CHART: Smoker vs Non-Smoker
+        document.getElementById('barChartSkeleton').classList.add('hidden');
+        document.getElementById('barChartWrap').classList.remove('hidden');
+        new Chart(document.getElementById('barChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Smoker', 'Non-Smoker'],
+                datasets: [{
+                    label: 'Avg Charges (₹)',
+                    data: [d.smoker_avg, d.non_smoker_avg],
+                    backgroundColor: ['rgba(239,68,68,0.7)', 'rgba(34,197,94,0.7)'],
+                    borderColor: ['rgba(239,68,68,1)', 'rgba(34,197,94,1)'],
+                    borderWidth: 1, borderRadius: 8, barThickness: 60,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => '₹' + (v/100000).toFixed(1) + 'L' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // 2. SCATTER PLOT: BMI vs Charges (color-coded by smoker)
+        document.getElementById('scatterSkeleton').classList.add('hidden');
+        document.getElementById('scatterWrap').classList.remove('hidden');
+        const smokerPts = [], nonSmokerPts = [];
+        for (let i = 0; i < d.bmi.length; i++) {
+            const pt = { x: d.bmi[i], y: d.charges[i] };
+            d.smoker_flags[i] ? smokerPts.push(pt) : nonSmokerPts.push(pt);
+        }
+        new Chart(document.getElementById('scatterChart'), {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    { label: 'Smoker', data: smokerPts, backgroundColor: 'rgba(239,68,68,0.6)', pointRadius: 4 },
+                    { label: 'Non-Smoker', data: nonSmokerPts, backgroundColor: 'rgba(99,102,241,0.4)', pointRadius: 3 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    x: { title: { display: true, text: 'BMI' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { title: { display: true, text: 'Charges (₹)' }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => '₹' + (v/100000).toFixed(0) + 'L' } }
+                }
+            }
+        });
+
+        // 3. LINE CHART: Age vs Avg Charges
+        document.getElementById('ageSkeleton').classList.add('hidden');
+        document.getElementById('ageChartWrap').classList.remove('hidden');
+        new Chart(document.getElementById('ageChart'), {
+            type: 'line',
+            data: {
+                labels: d.age_labels,
+                datasets: [{
+                    label: 'Avg Charges (₹)',
+                    data: d.age_avg_charges,
+                    borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)',
+                    fill: true, tension: 0.4, pointRadius: 5, pointBackgroundColor: '#06b6d4', borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => '₹' + (v/100000).toFixed(1) + 'L' } },
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' } }
+                }
+            }
+        });
+
+        // 4. HORIZONTAL BAR: Region-wise
+        document.getElementById('regionSkeleton').classList.add('hidden');
+        document.getElementById('regionChartWrap').classList.remove('hidden');
+        const rLabels = Object.keys(d.region_data).map(r => r.charAt(0).toUpperCase() + r.slice(1));
+        const rValues = Object.values(d.region_data);
+        const rColors = ['rgba(139,92,246,0.7)','rgba(99,102,241,0.7)','rgba(59,130,246,0.7)','rgba(6,182,212,0.7)','rgba(245,158,11,0.7)','rgba(239,68,68,0.7)','rgba(34,197,94,0.7)','rgba(236,72,153,0.7)','rgba(168,85,247,0.7)'];
+        new Chart(document.getElementById('regionChart'), {
+            type: 'bar',
+            data: {
+                labels: rLabels,
+                datasets: [{ label: 'Avg Charges (₹)', data: rValues, backgroundColor: rColors, borderRadius: 6, barThickness: 32 }]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => '₹' + (v/100000).toFixed(1) + 'L' } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+
+        document.getElementById('chartsLoader').classList.add('hidden');
+    } catch (e) { console.error('Charts error:', e); }
+}
+
+// ═══════════════════════════════════
+//  LOAD MODEL COMPARISON
+// ═══════════════════════════════════
+async function loadComparison() {
+    try {
+        const res = await fetch('/api/model-comparison');
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        const d = json.data;
+        const lr = d.linear_regression, rf = d.random_forest, dt = d.decision_tree, log = d.logistic_regression;
+
+        document.getElementById('compContent').innerHTML = `
+            <div class="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/15 mb-4 fade-up">
+                <span class="text-base">🏆</span>
+                <div>
+                    <p class="text-xs font-semibold text-emerald-300">${d.winner} Wins</p>
+                </div>
+            </div>
+            <div class="space-y-3 mb-4">
+                <div class="fade-up" style="animation-delay:0.1s">
+                    <div class="flex justify-between text-[11px] mb-1">
+                        <span class="text-violet-300 font-medium">Random Forest</span>
+                        <span class="text-white font-bold">${rf.r2_pct}%</span>
+                    </div>
+                    <div class="h-2.5 bg-white/5 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full progress-fill" style="width:0%" data-width="${rf.r2_pct}%"></div>
+                    </div>
+                </div>
+                <div class="fade-up" style="animation-delay:0.2s">
+                    <div class="flex justify-between text-[11px] mb-1">
+                        <span class="text-blue-300 font-medium">Linear Regression</span>
+                        <span class="text-white font-bold">${lr.r2_pct}%</span>
+                    </div>
+                    <div class="h-2.5 bg-white/5 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full progress-fill" style="width:0%" data-width="${lr.r2_pct}%"></div>
+                    </div>
+                </div>
+                <div class="fade-up" style="animation-delay:0.3s">
+                    <div class="flex justify-between text-[11px] mb-1">
+                        <span class="text-emerald-300 font-medium">Decision Tree</span>
+                        <span class="text-white font-bold">${dt.r2_pct}%</span>
+                    </div>
+                    <div class="h-2.5 bg-white/5 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-emerald-500 to-green-500 rounded-full progress-fill" style="width:0%" data-width="${dt.r2_pct}%"></div>
+                    </div>
+                </div>
+                <div class="fade-up" style="animation-delay:0.4s">
+                    <div class="flex justify-between text-[11px] mb-1">
+                        <span class="text-amber-300 font-medium">Logistic Regression (Classification)</span>
+                        <span class="text-white font-bold">${log.accuracy_pct}%</span>
+                    </div>
+                    <div class="h-2.5 bg-white/5 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full progress-fill" style="width:0%" data-width="${log.accuracy_pct}%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-xl overflow-hidden border border-white/5 fade-up" style="animation-delay:0.5s">
+                <table class="w-full text-[11px]">
+                    <thead><tr class="bg-white/[0.03]">
+                        <th class="text-left px-3 py-2 text-slate-500 font-medium">Metric</th>
+                        <th class="text-right px-3 py-2 text-violet-400 font-medium">RF</th>
+                        <th class="text-right px-3 py-2 text-blue-400 font-medium">LR</th>
+                        <th class="text-right px-3 py-2 text-emerald-400 font-medium">DT</th>
+                    </tr></thead>
+                    <tbody class="text-slate-300">
+                        <tr class="border-t border-white/[0.03]"><td class="px-3 py-2">MAE</td><td class="px-3 py-2 text-right font-mono">${fmt(rf.mae_inr)}</td><td class="px-3 py-2 text-right font-mono">${fmt(lr.mae_inr)}</td><td class="px-3 py-2 text-right font-mono">${fmt(dt.mae_inr)}</td></tr>
+                        <tr class="border-t border-white/[0.03]"><td class="px-3 py-2">RMSE</td><td class="px-3 py-2 text-right font-mono">${fmt(rf.rmse_inr)}</td><td class="px-3 py-2 text-right font-mono">${fmt(lr.rmse_inr)}</td><td class="px-3 py-2 text-right font-mono">${fmt(dt.rmse_inr)}</td></tr>
+                        <tr class="border-t border-white/[0.03]"><td class="px-3 py-2">R² Score</td><td class="px-3 py-2 text-right font-mono">${rf.r2}</td><td class="px-3 py-2 text-right font-mono">${lr.r2}</td><td class="px-3 py-2 text-right font-mono">${dt.r2}</td></tr>
+                        <tr class="border-t border-white/[0.03]"><td class="px-3 py-2">Samples</td><td class="px-3 py-2 text-right font-mono" colspan="3">${d.train_size} train / ${d.test_size} test</td></tr>
+                    </tbody>
+                </table>
+            </div>`;
+
+        const importances = rf.feature_importances;
+        const sortedFeatures = Object.entries(importances).sort((a,b) => b[1] - a[1]);
+        const featureLabels = { smoker:'🚬 Smoking', age:'📅 Age', bmi:'⚖️ BMI', children:'👶 Children', region:'📍 Region', sex:'👤 Gender' };
+        const featureColors = { smoker:'red', age:'amber', bmi:'blue', children:'violet', region:'cyan', sex:'slate' };
+        document.getElementById('factorsContent').innerHTML = sortedFeatures.map(([key, val], i) => `
+            <div class="flex items-center gap-3 fade-up" style="animation-delay:${i*0.08}s">
+                <span class="text-sm shrink-0">${featureLabels[key]?.split(' ')[0] || '📊'}</span>
+                <div class="flex-1">
+                    <div class="flex justify-between text-[11px] mb-0.5">
+                        <span class="text-slate-300">${featureLabels[key]?.split(' ').slice(1).join(' ') || key}</span>
+                        <span class="text-white font-semibold">${(val*100).toFixed(1)}%</span>
+                    </div>
+                    <div class="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full progress-fill bg-${featureColors[key]}-500" style="width:0%" data-width="${(val*100).toFixed(1)}%"></div>
+                    </div>
+                </div>
+            </div>`).join('');
+
+        document.getElementById('compLoader').classList.add('hidden');
+        await delay(300);
+        document.querySelectorAll('.progress-fill').forEach(el => { el.style.width = el.dataset.width; });
+    } catch (e) { console.error('Comparison error:', e); }
+}
+
+// ═══════════════════════════════════
+//  LOAD DATASET PREVIEW
+// ═══════════════════════════════════
+async function loadDatasetPreview() {
+    try {
+        const res = await fetch('/api/dataset-preview');
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        const rows = json.data;
+        const regionNames = { southwest:'SW', southeast:'SE', northwest:'NW', northeast:'NE', north:'N-India', south:'S-India', east:'E-India', west:'W-India', central:'C-India' };
+        document.getElementById('tableContainer').innerHTML = `
+            <table class="data-table w-full text-xs">
+                <thead><tr class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-white/5">
+                    <th class="text-left px-4 py-3">Age</th><th class="text-left px-4 py-3">Gender</th>
+                    <th class="text-left px-4 py-3">BMI</th><th class="text-left px-4 py-3">Children</th>
+                    <th class="text-left px-4 py-3">Smoker</th><th class="text-left px-4 py-3">Region</th>
+                    <th class="text-right px-4 py-3">Charges (₹)</th>
+                </tr></thead>
+                <tbody class="text-slate-400">
+                    ${rows.map(r => `<tr class="border-t border-white/[0.03]">
+                        <td class="px-4 py-2.5 text-white font-medium">${r.age}</td>
+                        <td class="px-4 py-2.5">${r.sex}</td>
+                        <td class="px-4 py-2.5">${r.bmi}</td>
+                        <td class="px-4 py-2.5">${r.children}</td>
+                        <td class="px-4 py-2.5"><span class="pill ${r.smoker==='yes'?'bg-red-500/10 text-red-400':'bg-emerald-500/10 text-emerald-400'}">${r.smoker}</span></td>
+                        <td class="px-4 py-2.5">${regionNames[r.region]||r.region}</td>
+                        <td class="px-4 py-2.5 text-right font-mono text-white">${fmt(r.charges_inr)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+        document.getElementById('tableCount').textContent = `Showing 12 of 692 records`;
+        document.getElementById('tableLoader').classList.add('hidden');
+    } catch (e) { console.error('Table error:', e); }
+}
+
+// ═══════════════════════════════════
+//  PREDICTION HANDLER
+// ═══════════════════════════════════
+async function handlePredict(e) {
+    e.preventDefault();
+    const age = parseInt(document.getElementById('age').value);
+    const bmi = parseFloat(document.getElementById('bmi').value);
+    const children = parseInt(document.getElementById('children').value);
+    let errors = [];
+    if (age < 1 || age > 100) errors.push('Age must be between 1 and 100.');
+    if (bmi < 10 || bmi > 60) errors.push('BMI must be between 10 and 60.');
+    if (children < 0 || children > 10) errors.push('Children must be between 0 and 10.');
+    if (errors.length) return showErrors(errors);
+
+    // Loading state
+    document.getElementById('btnText').textContent = 'Analyzing...';
+    document.getElementById('btnIcon').classList.add('hidden');
+    document.getElementById('btnSpinner').classList.remove('hidden');
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').classList.add('opacity-70');
+
+    document.getElementById('resultSection').classList.remove('hidden');
+    document.getElementById('resultSkeleton').classList.remove('hidden');
+    document.getElementById('resultCard').classList.add('hidden');
+    document.getElementById('explanationCard').classList.add('hidden');
+    document.getElementById('recommendationCard').classList.add('hidden');
+    document.getElementById('errorBox').classList.add('hidden');
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    try {
+        const formData = {
+            age, sex: parseInt(document.getElementById('sex').value),
+            bmi, children,
+            smoker: parseInt(document.getElementById('smoker').value),
+            region: parseInt(document.getElementById('region').value),
+        };
+
+        const res = await fetch('/api/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+        });
+        const json = await res.json();
+
+        if (!json.success) {
+            showErrors(json.errors || ['Prediction failed.']);
+            document.getElementById('resultSection').classList.add('hidden');
+            resetBtn(); return;
+        }
+
+        await delay(600);
+
+        // Show result card
+        document.getElementById('resultSkeleton').classList.add('hidden');
+        const resultCard = document.getElementById('resultCard');
+        resultCard.classList.remove('hidden');
+        resultCard.classList.remove('fade-up');
+        void resultCard.offsetHeight;
+        resultCard.classList.add('fade-up');
+
+        // Populate prediction
+        const rf = json.models.random_forest;
+        const lr = json.models.linear_regression;
+        const dt = json.models.decision_tree;
+        const log = json.models.logistic_regression;
+        
+        document.getElementById('rfPrediction').textContent = fmtDec(rf.inr);
+        document.getElementById('rfPredictionNote').textContent = `≈ $${rf.usd.toLocaleString()} USD`;
+        document.getElementById('lrPrediction').textContent = fmtDec(lr.inr);
+        document.getElementById('lrPredictionNote').textContent = `≈ $${lr.usd.toLocaleString()} USD`;
+        document.getElementById('dtPrediction').textContent = fmtDec(dt.inr);
+        document.getElementById('dtPredictionNote').textContent = `≈ $${dt.usd.toLocaleString()} USD`;
+        document.getElementById('logPrediction').textContent = log.classification;
+        document.getElementById('logPredictionNote').textContent = 'Above/Below Median';
+
+        // Risk badge
+        const riskColors = { Low:'emerald', Medium:'amber', High:'red' };
+        const rc = riskColors[json.risk.level];
+        document.getElementById('riskBadge').className = `pill bg-${rc}-500/10 text-${rc}-400 border border-${rc}-500/20`;
+        document.getElementById('riskBadge').textContent = `${json.risk.level} Risk`;
+
+        // Health tips
+        const tipColors = { warning:'amber', info:'blue', success:'emerald' };
+        document.getElementById('healthTips').innerHTML = json.tips.map(t => {
+            const tc = tipColors[t.type] || 'slate';
+            return `<div class="flex items-start gap-3 p-3 rounded-xl bg-${tc}-500/5 border border-${tc}-500/10">
+                <span class="text-lg mt-0.5">${t.icon}</span>
+                <div><p class="text-xs font-semibold text-${tc}-300">${t.title}</p><p class="text-[11px] text-slate-400 mt-0.5">${t.text}</p></div>
+            </div>`;
+        }).join('');
+
+        // ──────────────────────────────────────
+        //  AI EXPLANATION (NEW)
+        // ──────────────────────────────────────
+        await delay(200);
+        const expCard = document.getElementById('explanationCard');
+        expCard.classList.remove('hidden');
+        expCard.classList.remove('fade-up');
+        void expCard.offsetHeight;
+        expCard.classList.add('fade-up');
+
+        document.getElementById('explanationSummary').textContent = json.explanation.summary;
+
+        const impactColors = { Critical:'red', High:'red', Moderate:'amber', Low:'blue', Positive:'emerald' };
+        document.getElementById('explanationReasons').innerHTML = json.explanation.reasons.map(r => {
+            const ic = impactColors[r.impact] || 'slate';
+            return `<div class="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-${ic}-500/20 transition-colors">
+                <span class="text-lg mt-0.5 shrink-0">${r.icon}</span>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <p class="text-xs font-semibold text-white">${r.factor}</p>
+                        <span class="pill bg-${ic}-500/10 text-${ic}-400 border border-${ic}-500/20 !text-[9px] !py-0">${r.impact}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">${r.detail}</p>
+                </div>
+            </div>`;
+        }).join('');
+
+        // ──────────────────────────────────────
+        //  INSURANCE RECOMMENDATION (NEW)
+        // ──────────────────────────────────────
+        await delay(200);
+        const recCard = document.getElementById('recommendationCard');
+        recCard.classList.remove('hidden');
+        recCard.classList.remove('fade-up');
+        void recCard.offsetHeight;
+        recCard.classList.add('fade-up');
+
+        const rec = json.recommendation;
+        recCard.className = recCard.className.replace(/plan-(premium|standard|basic)/g, '');
+        recCard.classList.add(`plan-${rec.tier}`, 'rounded-2xl', 'p-6');
+
+        const tierColors = { premium:'red', standard:'amber', basic:'emerald' };
+        const tc2 = tierColors[rec.tier];
+        document.getElementById('recIcon').innerHTML = `<span class="text-lg">${rec.icon}</span>`;
+        document.getElementById('recPlanName').textContent = rec.plan;
+        document.getElementById('recPlanName').className = `text-base font-bold text-${tc2}-300`;
+        document.getElementById('recTierBadge').className = `pill bg-${tc2}-500/10 text-${tc2}-400 border border-${tc2}-500/20 uppercase`;
+        document.getElementById('recTierBadge').textContent = rec.tier;
+        document.getElementById('recReason').textContent = rec.reason;
+        document.getElementById('recPremium').textContent = rec.est_premium;
+        document.getElementById('recFeatures').innerHTML = rec.features.map(f =>
+            `<li class="flex items-center gap-2 text-xs text-slate-300"><span class="w-1.5 h-1.5 rounded-full bg-${tc2}-400 shrink-0"></span>${f}</li>`
+        ).join('');
+
+    } catch (err) {
+        console.error('Predict error:', err);
+        showErrors(['Something went wrong. Please try again.']);
+        document.getElementById('resultSection').classList.add('hidden');
+    }
+    resetBtn();
+}
+
+function showErrors(errors) {
+    const box = document.getElementById('errorBox');
+    box.classList.remove('hidden');
+    box.innerHTML = `<p class="text-red-400 font-semibold text-xs mb-1">⚠️ Validation Error</p>` +
+        errors.map(e => `<p class="text-red-300/80 text-xs">• ${e}</p>`).join('');
+}
+
+function resetBtn() {
+    document.getElementById('btnText').textContent = 'Generate Prediction';
+    document.getElementById('btnIcon').classList.remove('hidden');
+    document.getElementById('btnSpinner').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').classList.remove('opacity-70');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedPredict AI — Prediction Result</title>
+    <meta name="description" content="View your insurance cost prediction, AI explanation, and plan recommendation.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #070b14; }
+        .page-loader { position: fixed; inset: 0; z-index: 9999; background: #070b14; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s, visibility 0.5s; }
+        .page-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .loader-ring { width: 48px; height: 48px; border: 3px solid rgba(99,102,241,0.15); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(20px); }
+        .glow-indigo { box-shadow: 0 0 40px rgba(99,102,241,0.12); }
+        .result-card { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(6,182,212,0.05)); border: 1px solid rgba(34,197,94,0.15); }
+        .fade-up { animation: fadeUp 0.5s ease-out forwards; opacity: 0; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        .pill { padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+        .plan-premium { background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(249,115,22,0.05)); border: 1px solid rgba(239,68,68,0.15); }
+        .plan-standard { background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(251,191,36,0.05)); border: 1px solid rgba(245,158,11,0.15); }
+        .plan-basic { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(16,185,129,0.05)); border: 1px solid rgba(34,197,94,0.15); }
+        .f-skeleton { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.75rem; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-200 antialiased">
+    <div id="pageLoader" class="page-loader">
+        <div class="loader-ring mb-4"></div>
+        <p class="text-sm font-medium text-indigo-300">Loading prediction result</p>
+        <p class="text-xs text-slate-500 mt-1">Please wait...</p>
+    </div>
+
+    <div class="relative z-10">
+        <nav class="sticky top-0 z-50 glass border-b border-white/[0.04] px-4 md:px-8 py-3">
+            <div class="max-w-[1440px] mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-indigo-500/20">MP</div>
+                    <div>
+                        <h1 class="text-sm font-bold text-white leading-none">MedPredict AI</h1>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Prediction Result</p>
+                    </div>
+                </div>
+                <a href="/" class="pill bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 cursor-pointer">New Prediction</a>
+            </div>
+        </nav>
+
+        <main class="max-w-[1440px] mx-auto px-4 md:px-8 py-6 space-y-6">
+            <section class="glass rounded-2xl p-5">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 class="text-base font-bold text-white mb-1">Patient Data (Saved)</h2>
+                        <p class="text-[11px] text-slate-500">User inputs are saved and displayed here.</p>
+                    </div>
+                    <div id="patientDiseaseBadge" class="pill bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">Loading...</div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 mt-4">
+                    <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Identity</p>
+                        <p class="text-sm text-slate-200"><span class="text-slate-500">Name:</span> <span id="userName" class="font-semibold"></span></p>
+                        <p class="text-sm text-slate-200 mt-1"><span class="text-slate-500">Email:</span> <span id="userEmail" class="font-semibold break-all"></span></p>
+                        <p class="text-sm text-slate-200 mt-1"><span class="text-slate-500">Mobile:</span> <span id="userMobile" class="font-semibold"></span></p>
+                    </div>
+                    <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Address & Disease</p>
+                        <p class="text-sm text-slate-200"><span class="text-slate-500">Address:</span> <span id="userAddress" class="font-semibold break-words"></span></p>
+                        <p class="text-sm text-slate-200 mt-1"><span class="text-slate-500">Diseases:</span> <span id="userDiseases" class="font-semibold"></span></p>
+                    </div>
+                </div>
+            </section>
+
+            <div id="errorBox" class="hidden p-4 rounded-xl bg-red-500/8 border border-red-500/20"></div>
+
+            <section class="grid lg:grid-cols-5 gap-6 items-start">
+                <!-- Results -->
+                <div class="lg:col-span-3 space-y-5">
+                    <div id="resultSection" class="hidden space-y-5">
+                        <div id="resultCard" class="result-card rounded-2xl p-6 glow-green fade-up">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center"><span class="text-lg">📊</span></div>
+                                    <div>
+                                        <h3 class="text-base font-bold text-emerald-300">Prediction Result</h3>
+                                        <p class="text-[11px] text-slate-500">Model outputs (INR only)</p>
+                                    </div>
+                                </div>
+                                <div id="riskBadge" class="pill"></div>
+                            </div>
+                            <div class="grid sm:grid-cols-2 gap-4 mb-4">
+                                <div class="bg-emerald-500/8 border border-emerald-500/15 rounded-xl p-5">
+                                    <p class="text-[10px] uppercase tracking-widest text-emerald-400/70 font-semibold mb-1">Random Forest</p>
+                                    <p class="text-2xl font-extrabold text-emerald-300" id="rfPrediction">—</p>
+                                </div>
+                                <div class="bg-blue-500/8 border border-blue-500/15 rounded-xl p-5">
+                                    <p class="text-[10px] uppercase tracking-widest text-blue-400/70 font-semibold mb-1">Linear Regression</p>
+                                    <p class="text-2xl font-extrabold text-blue-300" id="lrPrediction">—</p>
+                                </div>
+                                <div class="bg-violet-500/8 border border-violet-500/15 rounded-xl p-5">
+                                    <p class="text-[10px] uppercase tracking-widest text-violet-400/70 font-semibold mb-1">Decision Tree</p>
+                                    <p class="text-2xl font-extrabold text-violet-300" id="dtPrediction">—</p>
+                                </div>
+                                <div class="bg-amber-500/8 border border-amber-500/15 rounded-xl p-5">
+                                    <p class="text-[10px] uppercase tracking-widest text-amber-400/70 font-semibold mb-1">Logistic Regression</p>
+                                    <p class="text-2xl font-extrabold text-amber-300" id="logPrediction">—</p>
+                                </div>
+                            </div>
+                            <div id="healthTips" class="space-y-2.5"></div>
+                            <p class="mt-4 text-[10px] text-slate-600">⚡ Disclaimer: AI-based estimate for educational purposes only.</p>
+                        </div>
+
+                        <div id="explanationCard" class="hidden fade-up glass rounded-2xl p-6">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center"><span class="text-lg">🧠</span></div>
+                                <div>
+                                    <h3 class="text-base font-bold text-violet-300">AI Explanation</h3>
+                                    <p class="text-[11px] text-slate-500">Why your prediction is this amount</p>
+                                </div>
+                            </div>
+                            <p id="explanationSummary" class="text-xs text-slate-400 mb-4 p-3 rounded-lg bg-white/[0.02] border border-white/5"></p>
+                            <div id="explanationReasons" class="space-y-2.5"></div>
+                        </div>
+
+                        <div id="recommendationCard" class="hidden fade-up rounded-2xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center" id="recIcon"><span class="text-lg">🏥</span></div>
+                                    <div>
+                                        <h3 class="text-base font-bold text-white">Recommendation</h3>
+                                        <p class="text-[11px] text-slate-500">Plan suggestion</p>
+                                    </div>
+                                </div>
+                                <div id="recTierBadge" class="pill hidden"></div>
+                            </div>
+                            <p id="recReason" class="text-xs text-slate-400 mb-4"></p>
+                            <div class="grid sm:grid-cols-2 gap-3">
+                                <div>
+                                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Plan Features</p>
+                                    <ul id="recFeatures" class="space-y-1.5"></ul>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <div class="text-center p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                                        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">Estimated Premium</p>
+                                        <p id="recPremium" class="text-lg font-extrabold text-white"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="lg:col-span-2 space-y-5">
+                    <div class="glass rounded-2xl p-5" id="comparisonSection">
+                        <div class="flex items-center gap-2 mb-4">
+                            <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">Model Comparison</h3>
+                            <div id="compLoader" class="loader-ring !w-3.5 !h-3.5 !border-2"></div>
+                        </div>
+                        <div id="compContent" class="space-y-3">
+                            <div class="f-skeleton h-12"></div>
+                            <div class="f-skeleton h-12"></div>
+                            <div class="f-skeleton h-32"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-5">
+                        <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Cost Impact Factors</h3>
+                        <div class="space-y-3" id="factorsContent">
+                            <div class="f-skeleton h-8"></div>
+                            <div class="f-skeleton h-8"></div>
+                            <div class="f-skeleton h-8"></div>
+                            <div class="f-skeleton h-8"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center py-6 text-[11px] text-slate-700 border-t border-white/[0.03]">
+            <p>MedPredict AI — Medical Expense & Health Insurance Prediction System</p>
+            <p class="mt-0.5">Python · Flask · Scikit-learn · Random Forest</p>
+        </footer>
+    </div>
+
+    <script>
+        const LOG_ID = "{{ log_id }}";
+        const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+        const fmtDec = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+        function showError(errs) {
+            const box = document.getElementById('errorBox');
+            box.classList.remove('hidden');
+            box.innerHTML = `<p class="text-red-400 font-semibold text-xs mb-1">⚠️ Error</p>` +
+                (Array.isArray(errs) ? errs : [String(errs)]).map(e => `<p class="text-red-300/80 text-xs">• ${e}</p>`).join('');
+        }
+
+        async function loadComparison() {
+            try {
+                const res = await fetch('/api/model-comparison');
+                const json = await res.json();
+                if (!json.success) throw new Error(json.error);
+                const d = json.data;
+                const lr = d.linear_regression, rf = d.random_forest, dt = d.decision_tree, log = d.logistic_regression;
+
+                document.getElementById('compContent').innerHTML = `
+                    <div class="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/15 mb-4 fade-up">
+                        <span class="text-base">🏆</span>
+                        <div>
+                            <p class="text-xs font-semibold text-emerald-300">${d.winner} Wins</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3 mb-4">
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="text-violet-300 font-medium">Random Forest</span>
+                            <span class="text-white font-bold">${rf.r2_pct}%</span>
+                        </div>
+                        <div class="h-2.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                            <div class="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full" style="width:${rf.r2_pct}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="text-blue-300 font-medium">Linear Regression</span>
+                            <span class="text-white font-bold">${lr.r2_pct}%</span>
+                        </div>
+                        <div class="h-2.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                            <div class="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full" style="width:${lr.r2_pct}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="text-emerald-300 font-medium">Decision Tree</span>
+                            <span class="text-white font-bold">${dt.r2_pct}%</span>
+                        </div>
+                        <div class="h-2.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                            <div class="h-full bg-gradient-to-r from-emerald-500 to-green-500 rounded-full" style="width:${dt.r2_pct}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="text-amber-300 font-medium">Logistic Regression (Classification)</span>
+                            <span class="text-white font-bold">${log.accuracy_pct}%</span>
+                        </div>
+                    </div>
+                    <div class="rounded-xl overflow-hidden border border-white/5 fade-up">
+                        <table class="w-full text-[11px]">
+                            <thead><tr class="bg-white/[0.03]">
+                                <th class="text-left px-3 py-2 text-slate-500 font-medium">Metric</th>
+                                <th class="text-right px-3 py-2 text-violet-400 font-medium">RF</th>
+                                <th class="text-right px-3 py-2 text-blue-400 font-medium">LR</th>
+                                <th class="text-right px-3 py-2 text-emerald-400 font-medium">DT</th>
+                            </tr></thead>
+                            <tbody class="text-slate-300">
+                                <tr class="border-t border-white/[0.03]"><td class="px-3 py-2">MAE</td><td class="px-3 py-2 text-right font-mono">${fmt(rf.mae_inr)}</td><td class="px-3 py-2 text-right font-mono">${fmt(lr.mae_inr)}</td><td class="px-3 py-2 text-right font-mono">${fmt(dt.mae_inr)}</td></tr>
+                                <tr class="border-t border-white/[0.03]"><td class="px-3 py-2">RMSE</td><td class="px-3 py-2 text-right font-mono">${fmt(rf.rmse_inr)}</td><td class="px-3 py-2 text-right font-mono">${fmt(lr.rmse_inr)}</td><td class="px-3 py-2 text-right font-mono">${fmt(dt.rmse_inr)}</td></tr>
+                                <tr class="border-t border-white/[0.03]"><td class="px-3 py-2">R² Score</td><td class="px-3 py-2 text-right font-mono">${rf.r2}</td><td class="px-3 py-2 text-right font-mono">${lr.r2}</td><td class="px-3 py-2 text-right font-mono">${dt.r2}</td></tr>
+                                <tr class="border-t border-white/[0.03]"><td class="px-3 py-2">Samples</td><td class="px-3 py-2 text-right font-mono" colspan="3">${d.train_size} train / ${d.test_size} test</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                const importances = rf.feature_importances;
+                const sortedFeatures = Object.entries(importances).sort((a,b) => b[1] - a[1]);
+                const featureLabels = { smoker:'🚬 Smoking', age:'📅 Age', bmi:'⚖️ BMI', children:'👶 Children', region:'📍 Region', sex:'👤 Gender' };
+                const featureColors = { smoker:'red', age:'amber', bmi:'blue', children:'violet', region:'cyan', sex:'slate' };
+                document.getElementById('factorsContent').innerHTML = sortedFeatures.map(([key, val], i) => `
+                    <div class="flex items-center gap-3 fade-up">
+                        <span class="text-sm shrink-0">${featureLabels[key]?.split(' ')[0] || '📊'}</span>
+                        <div class="flex-1">
+                            <div class="flex justify-between text-[11px] mb-0.5">
+                                <span class="text-slate-300">${featureLabels[key]?.split(' ').slice(1).join(' ') || key}</span>
+                                <span class="text-white font-semibold">${(val*100).toFixed(1)}%</span>
+                            </div>
+                            <div class="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full" style="width:${(val*100).toFixed(1)}%; background-color: rgba(99,102,241,0.7)"></div>
+                            </div>
+                        </div>
+                    </div>`).join('');
+
+                document.getElementById('compLoader').classList.add('hidden');
+            } catch (e) {
+                console.error('Comparison error:', e);
+            }
+        }
+
+        async function loadResult() {
+            if (!LOG_ID) {
+                showError('Missing result id.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/result/' + encodeURIComponent(LOG_ID));
+                const json = await res.json();
+                if (!json.success) throw new Error(json.error || 'Failed to load result.');
+
+                const d = json.data;
+
+                // Patient data
+                const patient = d.patient || {};
+                document.getElementById('userName').textContent = patient.name || '-';
+                document.getElementById('userEmail').textContent = patient.email || '-';
+                document.getElementById('userMobile').textContent = patient.mobile || '-';
+                document.getElementById('userAddress').textContent = patient.address || '-';
+                const hasDisease = patient.has_disease ? 'Yes' : 'No';
+                document.getElementById('patientDiseaseBadge').textContent = `Diseases: ${hasDisease}`;
+                document.getElementById('userDiseases').textContent = patient.has_disease ? (patient.diseases || '-') : 'None';
+
+                // Prediction
+                document.getElementById('resultSection').classList.remove('hidden');
+
+                const models = d.models || {};
+                const rf = models.random_forest || {};
+                const lr = models.linear_regression || {};
+                const dt = models.decision_tree || {};
+                const log = models.logistic_regression || {};
+
+                document.getElementById('rfPrediction').textContent = fmtDec(rf.inr ?? 0);
+                document.getElementById('lrPrediction').textContent = fmtDec(lr.inr ?? 0);
+                document.getElementById('dtPrediction').textContent = fmtDec(dt.inr ?? 0);
+                document.getElementById('logPrediction').textContent = log.classification || '-';
+
+                const riskColors = { Low:'emerald', Medium:'amber', High:'red' };
+                const level = d.risk?.level || 'Low';
+                const rc = riskColors[level] || 'emerald';
+                document.getElementById('riskBadge').className = `pill bg-${rc}-500/10 text-${rc}-400 border border-${rc}-500/20`;
+                document.getElementById('riskBadge').textContent = `${level} Risk`;
+
+                // Tips
+                const tips = d.tips || [];
+                const tipColors = { warning:'amber', info:'blue', success:'emerald' };
+                document.getElementById('healthTips').innerHTML = tips.map(t => {
+                    const tc = tipColors[t.type] || 'slate';
+                    return `<div class="flex items-start gap-3 p-3 rounded-xl bg-${tc}-500/5 border border-${tc}-500/10">
+                        <span class="text-lg mt-0.5">${t.icon}</span>
+                        <div><p class="text-xs font-semibold text-${tc}-300">${t.title}</p><p class="text-[11px] text-slate-400 mt-0.5">${t.text}</p></div>
+                    </div>`;
+                }).join('');
+
+                // Explanation
+                await delay(150);
+                const expCard = document.getElementById('explanationCard');
+                expCard.classList.remove('hidden');
+                expCard.classList.remove('fade-up');
+                void expCard.offsetHeight;
+                expCard.classList.add('fade-up');
+                document.getElementById('explanationSummary').textContent = d.explanation?.summary || '';
+                const reasons = d.explanation?.reasons || [];
+                const impactColors = { Critical:'red', High:'red', Moderate:'amber', Low:'blue', Positive:'emerald' };
+                document.getElementById('explanationReasons').innerHTML = reasons.map(r => {
+                    const ic = impactColors[r.impact] || 'slate';
+                    return `<div class="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-${ic}-500/20 transition-colors">
+                        <span class="text-lg mt-0.5 shrink-0">${r.icon}</span>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <p class="text-xs font-semibold text-white">${r.factor}</p>
+                                <span class="pill bg-${ic}-500/10 text-${ic}-400 border border-${ic}-500/20 !text-[9px] !py-0">${r.impact}</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400">${r.detail}</p>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                // Recommendation
+                await delay(150);
+                const recCard = document.getElementById('recommendationCard');
+                const rec = d.recommendation || {};
+                recCard.classList.remove('hidden');
+                // Keep the card neutral (no premium/standard/basic styling)
+                recCard.className = recCard.className.replace(/plan-(premium|standard|basic)/g, '');
+                recCard.classList.add('rounded-2xl', 'p-6');
+                document.getElementById('recIcon').innerHTML = `<span class="text-lg">${rec.icon || '🏥'}</span>`;
+                // Remove plan label + tier badge display
+                document.getElementById('recTierBadge').classList.add('hidden');
+                document.getElementById('recReason').textContent = rec.reason || '';
+                document.getElementById('recPremium').textContent = rec.est_premium || '-';
+                document.getElementById('recFeatures').innerHTML = (rec.features || []).map(f =>
+                    `<li class="flex items-center gap-2 text-xs text-slate-300"><span class="w-1.5 h-1.5 rounded-full bg-white/40 shrink-0"></span>${f}</li>`
+                ).join('');
+
+                document.getElementById('pageLoader').classList.add('hidden');
+            } catch (e) {
+                console.error('Result error:', e);
+                showError([String(e.message || e)]);
+                document.getElementById('pageLoader').classList.add('hidden');
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            await Promise.all([loadResult(), loadComparison()]);
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,7 @@
+flask
+pandas
+numpy
+scikit-learn
+
+# Production WSGI server for deployment
+gunicorn

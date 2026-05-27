@@ -1,0 +1,44 @@
+{
+  "linear_regression": {
+    "mae": 2711.53,
+    "rmse": 5157.56,
+    "r2": 0.6994,
+    "r2_pct": 69.94,
+    "coefficients": {
+      "age": 246.39,
+      "sex": -11.02,
+      "bmi": 155.11,
+      "children": 374.73,
+      "smoker": 20179.55,
+      "region": -702.86,
+      "intercept": -5838.94
+    }
+  },
+  "decision_tree": {
+    "mae": 1728.42,
+    "rmse": 4344.96,
+    "r2": 0.7866,
+    "r2_pct": 78.66
+  },
+  "random_forest": {
+    "mae": 1399.23,
+    "rmse": 3766.04,
+    "r2": 0.8397,
+    "r2_pct": 83.97,
+    "feature_importances": {
+      "age": 0.2074,
+      "sex": 0.006,
+      "bmi": 0.0864,
+      "children": 0.0165,
+      "smoker": 0.5381,
+      "region": 0.1456
+    }
+  },
+  "logistic_regression": {
+    "accuracy": 0.8828,
+    "accuracy_pct": 88.28
+  },
+  "winner": "Random Forest",
+  "train_size": 953,
+  "test_size": 239
+}

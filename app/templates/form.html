@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedPredict AI — Insurance Intelligence</title>
+    <meta name="description" content="Predict medical insurance cost with AI, get explanation and plan recommendations.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        dark: { 200:'#1e293b',300:'#192033',400:'#141b2d',500:'#111827',600:'#0d1320',700:'#0a0f1a',800:'#070b14',900:'#04060d' },
+                        accent: { 400:'#6366f1',500:'#4f46e5',600:'#4338ca' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #070b14; }
+        .page-loader { position: fixed; inset: 0; z-index: 9999; background: #070b14; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s, visibility 0.5s; }
+        .page-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .loader-ring { width: 48px; height: 48px; border: 3px solid rgba(99,102,241,0.15); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(20px); }
+        .glow-indigo { box-shadow: 0 0 40px rgba(99,102,241,0.12); }
+        .btn-predict { background: linear-gradient(135deg, #4f46e5, #7c3aed); transition: all 0.3s; position: relative; overflow: hidden; }
+        .btn-predict:hover { box-shadow: 0 8px 30px rgba(99,102,241,0.4); transform: translateY(-1px); }
+        .btn-predict:active { transform: translateY(0); }
+        .pill { padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+        .finput { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); transition: all 0.25s; }
+        .finput:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); background: rgba(255,255,255,0.06); }
+        .finput:hover { border-color: rgba(255,255,255,0.15); }
+        select.finput option { background: #141b2d; color: #e2e8f0; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-200 antialiased">
+    <div id="pageLoader" class="page-loader">
+        <div class="loader-ring mb-4"></div>
+        <p class="text-sm font-medium text-indigo-300">Preparing prediction form</p>
+        <p class="text-xs text-slate-500 mt-1">Please wait...</p>
+    </div>
+
+    <div class="relative z-10">
+        <nav class="sticky top-0 z-50 glass border-b border-white/[0.04] px-4 md:px-8 py-3">
+            <div class="max-w-[1440px] mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-indigo-500/20">MP</div>
+                    <div>
+                        <h1 class="text-sm font-bold text-white leading-none">MedPredict AI</h1>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Insurance Intelligence</p>
+                    </div>
+                </div>
+                <span class="pill bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">● Models Active</span>
+            </div>
+        </nav>
+
+        <main class="max-w-[1440px] mx-auto px-4 md:px-8 py-6 space-y-6">
+            <section class="grid lg:grid-cols-5 gap-6 items-start">
+                <div class="lg:col-span-2 space-y-5">
+                    <div class="glass rounded-2xl p-5">
+                        <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">How It Works</h3>
+                        <div class="space-y-2.5 text-xs text-slate-400">
+                            <div class="flex items-start gap-2.5">
+                                <span class="w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+                                <p>Enter patient health parameters</p>
+                            </div>
+                            <div class="flex items-start gap-2.5">
+                                <span class="w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                                <p>ML models process your data in parallel</p>
+                            </div>
+                            <div class="flex items-start gap-2.5">
+                                <span class="w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+                                <p>Get prediction, AI explanation & plan recommendation</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-3 space-y-5">
+                    <div class="glass rounded-2xl p-6 glow-indigo">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center"><span class="text-lg">🔮</span></div>
+                                <div>
+                                    <h2 class="text-base font-bold text-white">Predict Insurance Cost</h2>
+                                    <p class="text-[11px] text-slate-500">Powered by Random Forest (83.97% accuracy)</p>
+                                </div>
+                            </div>
+                            <span class="pill bg-violet-500/10 text-violet-300 border border-violet-500/20">AI Model</span>
+                        </div>
+
+                        <form id="predictForm" onsubmit="handleSubmit(event)">
+                            <div class="glass rounded-xl p-4 mb-4">
+                                <p class="text-xs font-semibold text-slate-400 mb-3">Patient Details</p>
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Person Name</label>
+                                        <input type="text" id="person_name" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none" placeholder="e.g. Rahul Sharma">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Person Mail ID</label>
+                                        <input type="email" id="person_mail" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none" placeholder="e.g. rahul@email.com">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-400 mb-1.5">User Mobile Number</label>
+                                        <input type="tel" id="person_mobile" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none" placeholder="e.g. 9876543210">
+                                    </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-xs font-medium text-slate-400 mb-1.5">User Address</label>
+                                        <textarea id="user_address" required rows="2" class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none resize-none" placeholder="Enter your address"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="glass rounded-xl p-4 mb-4">
+                                <p class="text-xs font-semibold text-slate-400 mb-3">Current Diseases</p>
+                                <div class="grid md:grid-cols-2 gap-4 items-start">
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Do you have any diseases now?</label>
+                                        <select id="has_disease" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none cursor-pointer appearance-none" onchange="toggleDiseaseInput()">
+                                            <option value="">Select</option>
+                                            <option value="no">No</option>
+                                            <option value="yes">Yes</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label id="diseasesLabel" class="block text-xs font-medium text-slate-400 mb-1.5" style="display:none;">Enter the diseases</label>
+                                        <input id="diseases" type="text" style="display:none;" class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none" placeholder="e.g. Diabetes, Hypertension">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Age <span class="text-slate-600">(1–100)</span></label>
+                                    <input type="number" id="age" min="1" max="100" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none" placeholder="e.g. 30">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Gender</label>
+                                    <select id="sex" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none cursor-pointer appearance-none">
+                                        <option value="">Select Gender</option>
+                                        <option value="0">Male</option>
+                                        <option value="1">Female</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-1.5">BMI <span class="text-slate-600">(10–60)</span></label>
+                                    <input type="number" id="bmi" min="10" max="60" step="0.1" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none" placeholder="e.g. 25.5">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Children <span class="text-slate-600">(0–10)</span></label>
+                                    <input type="number" id="children" min="0" max="10" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none" placeholder="e.g. 2">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Smoking Status</label>
+                                    <select id="smoker" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none cursor-pointer appearance-none">
+                                        <option value="">Select Status</option>
+                                        <option value="0">Non-Smoker</option>
+                                        <option value="1">Smoker</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Region</label>
+                                    <select id="region" required class="finput w-full px-4 py-3 rounded-xl text-white text-sm outline-none cursor-pointer appearance-none">
+                                        <option value="">Select Region</option>
+                                        <optgroup label="─── US Regions">
+                                            <option value="0">Southwest</option>
+                                            <option value="1">Southeast</option>
+                                            <option value="2">Northwest</option>
+                                            <option value="3">Northeast</option>
+                                        </optgroup>
+                                        <optgroup label="─── India Regions">
+                                            <option value="4">North India (Delhi, UP, Punjab)</option>
+                                            <option value="5">South India (TN, Kerala, Karnataka)</option>
+                                            <option value="6">East India (WB, Bihar, Odisha)</option>
+                                            <option value="7">West India (Maharashtra, Gujarat)</option>
+                                            <option value="8">Central India (MP, Chhattisgarh)</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button type="submit" id="submitBtn" class="btn-predict mt-6 w-full py-3.5 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2">
+                                <span id="btnIcon">⚡</span>
+                                <span id="btnText">Generate Prediction</span>
+                                <div id="btnSpinner" class="loader-ring !w-5 !h-5 !border-2 hidden"></div>
+                            </button>
+                        </form>
+
+                        <div id="errorBox" class="hidden mt-4 p-4 rounded-xl bg-red-500/8 border border-red-500/20"></div>
+                        <p class="mt-4 text-[10px] text-slate-600">⚡ Disclaimer: AI-based estimate for educational purposes only.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center py-6 text-[11px] text-slate-700 border-t border-white/[0.03]">
+            <p>MedPredict AI — Medical Expense & Health Insurance Prediction System</p>
+            <p class="mt-0.5">Python · Flask · Scikit-learn · Random Forest</p>
+        </footer>
+    </div>
+
+    <script>
+        function showErrors(errors) {
+            const box = document.getElementById('errorBox');
+            box.classList.remove('hidden');
+            box.innerHTML = `<p class="text-red-400 font-semibold text-xs mb-1">⚠️ Validation Error</p>` +
+                errors.map(e => `<p class="text-red-300/80 text-xs">• ${e}</p>`).join('');
+        }
+
+        function clearErrors() {
+            const box = document.getElementById('errorBox');
+            box.classList.add('hidden');
+            box.innerHTML = '';
+        }
+
+        function toggleDiseaseInput() {
+            const sel = document.getElementById('has_disease').value;
+            const label = document.getElementById('diseasesLabel');
+            const input = document.getElementById('diseases');
+            if (sel === 'yes') {
+                label.style.display = 'block';
+                input.style.display = 'block';
+                input.required = true;
+            } else {
+                label.style.display = 'none';
+                input.style.display = 'none';
+                input.required = false;
+                input.value = '';
+            }
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            clearErrors();
+
+            const age = parseInt(document.getElementById('age').value, 10);
+            const bmi = parseFloat(document.getElementById('bmi').value);
+            const children = parseInt(document.getElementById('children').value, 10);
+            const sex = parseInt(document.getElementById('sex').value, 10);
+            const smoker = parseInt(document.getElementById('smoker').value, 10);
+            const region = parseInt(document.getElementById('region').value, 10);
+
+            const person_name = document.getElementById('person_name').value.trim();
+            const person_mail = document.getElementById('person_mail').value.trim();
+            const person_mobile = document.getElementById('person_mobile').value.trim();
+            const user_address = document.getElementById('user_address').value.trim();
+            const has_disease = document.getElementById('has_disease').value;
+            const diseases = document.getElementById('diseases').value.trim();
+
+            const errors = [];
+            if (!person_name) errors.push('Person name is required.');
+            if (!person_mail || !person_mail.includes('@')) errors.push('Valid person mail id is required.');
+            if (!user_address) errors.push('User address is required.');
+            if (!has_disease) errors.push('Please select whether you have any diseases now.');
+            if (has_disease === 'yes' && !diseases) errors.push('Please enter your diseases.');
+
+            if (age < 1 || age > 100) errors.push('Age must be between 1 and 100.');
+            if (bmi < 10 || bmi > 60) errors.push('BMI must be between 10 and 60.');
+            if (children < 0 || children > 10) errors.push('Children must be between 0 and 10.');
+            if (![0, 1].includes(sex)) errors.push('Invalid gender selection.');
+            if (![0, 1].includes(smoker)) errors.push('Invalid smoking selection.');
+            if (!Number.isFinite(region) || region < 0 || region > 8) errors.push('Invalid region selection.');
+
+            const mobileDigits = person_mobile.replace(/\\D/g, '');
+            if (!mobileDigits || !/^[0-9]{10,15}$/.test(mobileDigits)) errors.push('Valid mobile number is required (digits only, e.g. 9876543210).');
+
+            if (errors.length) {
+                showErrors(errors);
+                return;
+            }
+
+            document.getElementById('btnText').textContent = 'Analyzing...';
+            document.getElementById('btnIcon').classList.add('hidden');
+            document.getElementById('btnSpinner').classList.remove('hidden');
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('submitBtn').classList.add('opacity-70');
+
+            try {
+                const payload = {
+                    age,
+                    sex,
+                    bmi,
+                    children,
+                    smoker,
+                    region,
+                    person_name,
+                    person_mail,
+                    person_mobile,
+                    user_address,
+                    has_disease,
+                    diseases
+                };
+
+                const res = await fetch('/api/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const json = await res.json();
+                if (!json.success) {
+                    showErrors(json.errors || ['Submission failed.']);
+                    document.getElementById('submitBtn').disabled = false;
+                    document.getElementById('submitBtn').classList.remove('opacity-70');
+                    document.getElementById('btnText').textContent = 'Generate Prediction';
+                    document.getElementById('btnIcon').classList.remove('hidden');
+                    document.getElementById('btnSpinner').classList.add('hidden');
+                    return;
+                }
+
+                window.location.href = '/result/' + json.id;
+            } catch (err) {
+                console.error('Submit error:', err);
+                showErrors(['Something went wrong. Please try again.']);
+            }
+        }
+
+        window.addEventListener('load', () => {
+            toggleDiseaseInput();
+            setTimeout(() => {
+                document.getElementById('pageLoader').classList.add('hidden');
+            }, 200);
+        });
+    </script>
+</body>
+</html>
+
